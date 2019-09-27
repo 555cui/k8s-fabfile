@@ -2,14 +2,15 @@
 
 from fabric.api import *
 from setting import *
+from utils import *
 
-env.user = HOST_USER
-env.password = HOST_PASSWORD
+env.passwords = get_login_passwd()
 env.roledefs = {
-    'etcd': ETCD_HOSTS,
-    'master': MASTER_HOSTS,
-    'worker': WORKER_HOSTS
+    'etcd': get_login_host(ETCD_HOSTS),
+    'master': get_login_host(MASTER_HOSTS),
+    'worker': get_login_host(WORKER_HOSTS)
 }
+tmp_dir = '/k8s-tmp'
 
 
 def ssl():
@@ -34,27 +35,31 @@ def ssl():
         etcd_hosts += '"'
         etcd_hosts += ','
 
-    cluster_ip = '"' + CLUSTER_API_IP + '"'
+    cluster_ip = '"' + CLUSTER_IP[0] + '"'
 
     # 修改临时目录ssl证书配置，修改ip列表
-    local('mkdir ' + TMP_DIR)
-    local('cp -r ' + LOCAL_DIR + '/ssl ' + TMP_DIR + '/')
-    local("sed -i 's/__CLUSTER_API_IP__/" + cluster_ip + "/g' " + TMP_DIR + "/ssl/config/apiserver-csr.json")
-    local("sed -i 's/__MASTER_HOSTS__/" + master_hosts + "/g' " + TMP_DIR + "/ssl/config/apiserver-csr.json")
-    local("sed -i 's/__ETCD_HOSTS__/" + etcd_hosts + "/g' " + TMP_DIR + "/ssl/config/etcd-csr.json")
-    local("sh " + TMP_DIR + "/ssl/script/init.sh " + TMP_DIR)
+    local('mkdir -p' + tmp_dir +'/ssl')
+    local('cp -r ' + WORK_DIR + '/ssl/config' + tmp_dir + '/ssl/')
+
+    api_file_path = WORK_DIR + '/ssl/config/apiserver-csr.json'
+    etcd_file_path = WORK_DIR + '/ssl/config/etcd-csr.json'
+
+    local(get_replace_format('__CLUSTER_API_IP__', cluster_ip, api_file_path))
+    local(get_replace_format('__MASTER_HOSTS__', master_hosts, api_file_path))
+
+    local(get_replace_format('__ETCD_HOSTS__', etcd_hosts, etcd_file_path))
 
 
 @roles('etcd')
 def etcd():
     # 分发软件包和证书
     run('mkdir -p ' + BASE_DIR + '/ssl')
-    put(LOCAL_DIR + '/etcd', BASE_DIR + '/')
-    put(TMP_DIR + '/ssl/etcd', BASE_DIR + '/ssl/')
-    put(TMP_DIR + '/ssl/ca', BASE_DIR + '/ssl/')
+    put(WORK_DIR + '/etcd', BASE_DIR + '/')
+    put(tmp_dir + '/ssl/etcd', BASE_DIR + '/ssl/')
+    put(tmp_dir + '/ssl/ca', BASE_DIR + '/ssl/')
 
     # ToDo 获取宿主机IP
-    private_ip = run("ifconfig " + PRIVATE_NETWORK_CARD + " | grep 'inet ' | awk '{print $2}'")
+    private_ip = env.host
     cluster_ip_list = ''
     for ip in ETCD_HOSTS:
         cluster_ip_list += ip
@@ -88,12 +93,12 @@ def etcd():
 @roles('master')
 def master():
     # 分发软件包和证书
-    run('mkdir -p' + BASE_DIR + '/ssl')
-    put(LOCAL_DIR + '/master', BASE_DIR + '/')
-    put(TMP_DIR + '/ssl/etcd', BASE_DIR + '/ssl/')
-    put(TMP_DIR + '/ssl/apiserver', BASE_DIR + '/ssl/')
-    put(TMP_DIR + '/ssl/metrics', BASE_DIR + '/ssl/')
-    put(TMP_DIR + '/ssl/ca', BASE_DIR + '/ssl/')
+    run('mkdir -p ' + BASE_DIR + '/ssl')
+    put(WORK_DIR + '/master', BASE_DIR + '/')
+    put(tmp_dir + '/ssl/etcd', BASE_DIR + '/ssl/')
+    put(tmp_dir + '/ssl/apiserver', BASE_DIR + '/ssl/')
+    put(tmp_dir + '/ssl/metrics', BASE_DIR + '/ssl/')
+    put(tmp_dir + '/ssl/ca', BASE_DIR + '/ssl/')
 
     etcd_servers = ''
     for ip in ETCD_HOSTS:
@@ -105,7 +110,7 @@ def master():
     etcd_servers = etcd_servers[:-1]
 
     # ToDo 获取私网IP
-    private_ip = run("ifconfig " + PRIVATE_NETWORK_CARD + " | grep 'inet ' | awk '{print $2}'")
+    private_ip = env.host
 
     run("sed -i 's#__TOKEN__#" + BOOTSTRAP_TOKEN + "#g' " + BASE_DIR + "/master/token/token.csv")
     run("sed -i 's#__ETCD_SERVERS__#" + etcd_servers + "#g' " + BASE_DIR + "/master/config/kube-apiserver.cfg")
@@ -151,19 +156,19 @@ def docker():
         run('yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo')
         run('yum install -y docker-ce')
     else:
-        run('rm -rf ' + TMP_DIR)
-        run('mkdir -p ' + TMP_DIR)
-        put(LOCAL_DIR + '/docker/package', TMP_DIR + '/')
+        run('rm -rf ' + tmp_dir)
+        run('mkdir -p ' + tmp_dir)
+        put(WORK_DIR + '/docker/package', tmp_dir + '/')
         # 离线安装docker
-        run("rpm -ivh " + TMP_DIR + "/package/libtool-ltdl-2.4.2-22.el7_3.x86_64.rpm")
-        run("rpm -ivh " + TMP_DIR + "/package/containerd.io-1.2.0-3.el7.x86_64.rpm")
-        run("rpm -ivh " + TMP_DIR + "/package/docker-ce-18.09.0-3.el7.x86_64.rpm")
-        run("rpm -ivh " + TMP_DIR + "/package/container-selinux-2.66-1.el7.noarch.rpm")
-        run("rpm -ivh " + TMP_DIR + "/package/docker-ce-18.09.0-3.el7.x86_64.rpm")
+        run("rpm -ivh " + tmp_dir + "/package/libtool-ltdl-2.4.2-22.el7_3.x86_64.rpm")
+        run("rpm -ivh " + tmp_dir + "/package/containerd.io-1.2.0-3.el7.x86_64.rpm")
+        run("rpm -ivh " + tmp_dir + "/package/docker-ce-18.09.0-3.el7.x86_64.rpm")
+        run("rpm -ivh " + tmp_dir + "/package/container-selinux-2.66-1.el7.noarch.rpm")
+        run("rpm -ivh " + tmp_dir + "/package/docker-ce-18.09.0-3.el7.x86_64.rpm")
 
     # 覆盖docker配置文件
     run("mkdir -p /etc/docker")
-    put(LOCAL_DIR + '/docker/daemon.json', '/etc/docker/')
+    put(WORK_DIR + '/docker/daemon.json', '/etc/docker/')
 
     # 启动docker
     run("systemctl start docker")
@@ -177,31 +182,31 @@ def worker():
     else:
         master_ip = MASTER_HOSTS[0]
     local('kubectl config set-cluster kubernetes'
-          ' --certificate-authority=' + TMP_DIR + '/ssl/ca/ca.pem'
+          ' --certificate-authority=' + tmp_dir + '/ssl/ca/ca.pem'
           ' --embed-certs=true'
           ' --server=https://' + master_ip + ':' + str(ADVICE_MASTER_PORT) +
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/bootstrap.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/bootstrap.kubeconfig')
     local('kubectl config set-credentials kubelet-bootstrap'
           ' --token=' + BOOTSTRAP_TOKEN +
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/bootstrap.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/bootstrap.kubeconfig')
     local('kubectl config set-context default'
           ' --cluster=kubernetes'
           ' --user=kubelet-bootstrap'
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/bootstrap.kubeconfig')
-    local('kubectl config use-context default --kubeconfig=' + TMP_DIR + '/kubeconfig/bootstrap.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/bootstrap.kubeconfig')
+    local('kubectl config use-context default --kubeconfig=' + tmp_dir + '/kubeconfig/bootstrap.kubeconfig')
 
     # 分发软件包和配置
-    put(LOCAL_DIR + '/worker', BASE_DIR + '/')
+    put(WORK_DIR + '/worker', BASE_DIR + '/')
     run('mkdir /opt/cni')
-    put(LOCAL_DIR + '/cni/bin', '/opt/cni/')
-    put(TMP_DIR + '/kubeconfig', BASE_DIR + '/worker/')
+    put(WORK_DIR + '/cni/bin', '/opt/cni/')
+    put(tmp_dir + '/kubeconfig', BASE_DIR + '/worker/')
     # ToDo 获取私网IP
-    private_ip = run("ifconfig " + PRIVATE_NETWORK_CARD + " | grep 'inet ' | awk '{print $2}'")
+    private_ip = env.host
 
     run('chmod +x /opt/cni/bin/*')
     run("sed -i 's/__HOSTNAME_OVERRIDE__/" + private_ip + "/g' " + BASE_DIR + "/worker/config/kubelet.conf")
     run('mkdir /etc/cni')
-    put(LOCAL_DIR + '/cni/net.d', '/etc/cni/')
+    put(WORK_DIR + '/cni/net.d', '/etc/cni/')
 
     run("sed -i 's/__BASE_DIR__/" + BASE_DIR + "/g' " + BASE_DIR + "/worker/service/kubelet.service")
     run("cp " + BASE_DIR + "/worker/service/kubelet.service /usr/bin/systemd/system/kubelet.service")
@@ -216,19 +221,19 @@ def setting():
     else:
         master_ip = MASTER_HOSTS[0]
 
-    local('cp ' + LOCAL_DIR + '/bin/kubectl /usr/local/bin/kubectl')
+    local('cp ' + WORK_DIR + '/bin/kubectl /usr/local/bin/kubectl')
     local('chmod +x /usr/local/bin/kubectl')
     local('kubectl config set-cluster kubernetes'
-          ' --certificate-authority=' + TMP_DIR + '/ssl/ca/ca.pem'
+          ' --certificate-authority=' + tmp_dir + '/ssl/ca/ca.pem'
           ' --embed-certs=true'
           ' --server=https://' + master_ip + ':' + str(ADVICE_MASTER_PORT))
     local('kubectl config set-credentials admin'
-          ' --client-certificate=' + TMP_DIR + '/ssl/admin/admin.pem'
-          ' --embed-certs=true --client-key=' + TMP_DIR + '/ssl/admin/admin-key.pem')
+          ' --client-certificate=' + tmp_dir + '/ssl/admin/admin.pem'
+          ' --embed-certs=true --client-key=' + tmp_dir + '/ssl/admin/admin-key.pem')
     local('kubectl config set-context kubernetes --cluster=kubernetes --user=admin')
     local('kubectl config use-context kubernetes')
 
-    local('kubectl apply -f ' + LOCAL_DIR + '/master/script/auto-csr-rbac.yaml')
+    local('kubectl apply -f ' + WORK_DIR + '/master/script/auto-csr-rbac.yaml')
     local(
         'kubectl create clusterrolebinding kubelet-bootstrap --clusterrole=system:node-bootstrapper --user=kubelet-bootstrap')
     local(
@@ -246,33 +251,33 @@ def proxy():
     else:
         master_ip = 'https://' + MASTER_HOSTS[0] + ':' + str(ADVICE_MASTER_PORT)
     local('kubectl config set-cluster kubernetes'
-          ' --certificate-authority=' + TMP_DIR + '/ssl/ca/ca.pem'
+          ' --certificate-authority=' + tmp_dir + '/ssl/ca/ca.pem'
           ' --embed-certs=true'
           ' --server=https://' + master_ip + ':' + str(ADVICE_MASTER_PORT) +
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/kube-router.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/kube-router.kubeconfig')
     local('kubectl config set-credentials kube-router'
           ' --client-certificate=/tmp/ssl/kube-router/kube-router.pem'
           ' --client-key=/tmp/ssl/kube-router/kube-router-key.pem'
           ' --embed-certs=true'
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/kube-router.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/kube-router.kubeconfig')
     local('kubectl config set-context default'
           ' --cluster=kubernetes'
           ' --user=kube-router'
-          ' --kubeconfig=' + TMP_DIR + '/kubeconfig/kube-router.kubeconfig')
-    local('kubectl config use-context default --kubeconfig=' + TMP_DIR + '/kubeconfig/kube-router.kubeconfig')
+          ' --kubeconfig=' + tmp_dir + '/kubeconfig/kube-router.kubeconfig')
+    local('kubectl config use-context default --kubeconfig=' + tmp_dir + '/kubeconfig/kube-router.kubeconfig')
     local('kubectl create configmap'
           ' -n kube-system kube-router-kubeconfig'
-          ' --from-file=' + TMP_DIR + '/kubeconfig/kube-router.kubeconfig')
-    local('kubectl apply -f ' + LOCAL_DIR + '/master/plugin/kube-router/kuberoute.yaml')
+          ' --from-file=' + tmp_dir + '/kubeconfig/kube-router.kubeconfig')
+    local('kubectl apply -f ' + tmp_dir + '/master/plugin/kube-router/kuberoute.yaml')
 
 
 def network():
     if CNI == 'flannel':
-        local('kubectl apply -f ' + LOCAL_DIR + '/master/plugin/flannel')
+        local('kubectl apply -f ' + WORK_DIR + '/master/plugin/flannel')
 
 
 def core_dns():
-    local('cp ' + LOCAL_DIR + '/master/plugin/coredns/coredns.yaml ' + TMP_DIR)
-    local('sed -i "s/__CLUSTER_DNS_IP__/' + CLUSTER_DNS_IP + '/g" ' + TMP_DIR + '/coredns.yaml')
-    local('kubectl apply -f ' + TMP_DIR + 'coredns.yaml')
+    local('cp ' + WORK_DIR + '/master/plugin/coredns/coredns.yaml ' + WORK_DIR)
+    local('sed -i "s/__CLUSTER_DNS_IP__/' + CLUSTER_IP[1] + '/g" ' + tmp_dir + '/coredns.yaml')
+    local('kubectl apply -f ' + tmp_dir + 'coredns.yaml')
 

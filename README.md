@@ -10,3 +10,5 @@
 + /bin
 + /config
 + /script
+
+# 开发中 无法使用！
