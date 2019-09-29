@@ -35,6 +35,7 @@ WORKER_HOSTS = [
 PAUSE_IMAGE = 'library/pause-amd64:latest'
 KUBE_ROUTER_IMAGE = 'library/kube-router:latest'
 FLANNEL_IMAGE = 'library/flannel-amd64:latest'
+TILLER_IMAGE = 'library/tiller:v2.14.3'
 
 # docker
 DOCKER_ONLINE = True
