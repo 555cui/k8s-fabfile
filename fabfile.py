@@ -18,14 +18,13 @@ def prepare():
     local('mkdir ' + WORK_DIR + '/tmp/ssl')
     local('mkdir ' + WORK_DIR + '/tmp/kubeconfig')
     local('mkdir ' + WORK_DIR + '/tmp/yaml')
-    local('cp -r ' + WORK_DIR + '/ssl/config ' + WORK_DIR + '/tmp/ssl/')
-
-    local('chmod +x ' + WORK_DIR + '/ssl/bin/*')
 
 
 def ssl():
+    local('cp -r ' + WORK_DIR + '/ssl-config ' + WORK_DIR + '/tmp/ssl/config')
     local('rm -rf ' + WORK_DIR + '/tmp/ssl/target')
     local('mkdir ' + WORK_DIR + '/tmp/ssl/target')
+    local('chmod +x ' + WORK_DIR + '/bin/cfssl*')
     # 设置api server列表
     master_hosts = ''
     for ip in MASTER_HOSTS:
@@ -61,57 +60,57 @@ def ssl():
     local(get_replace_format('__ETCD_HOSTS__', etcd_hosts, etcd_file_path))
 
     # gen ca
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -initca ' +
+    local(WORK_DIR + '/bin/cfssl gencert -initca ' +
           WORK_DIR + '/tmp/ssl/config/ca-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/ca')
     # gen etcd
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/etcd-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/etcd')
     # gen apiserver
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/apiserver-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/apiserver')
     # gen metrics
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/metrics-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/metrics')
     # gen kuberoute
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/kuberoute-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/kuberoute')
     # gen admin
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/admin-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/admin')
     # gen tiller
-    local(WORK_DIR + '/ssl/bin/cfssl gencert -ca=' +
+    local(WORK_DIR + '/bin/cfssl gencert -ca=' +
           WORK_DIR + '/tmp/ssl/target/ca.pem -ca-key=' +
           WORK_DIR + '/tmp/ssl/target/ca-key.pem -config=' +
           WORK_DIR + '/tmp/ssl/config/ca-config.json -profile=kubernetes ' +
           WORK_DIR + '/tmp/ssl/config/tiller-csr.json | ' +
-          WORK_DIR + '/ssl/bin/cfssljson -bare ' +
+          WORK_DIR + '/bin/cfssljson -bare ' +
           WORK_DIR + '/tmp/ssl/target/tiller')
 
 
@@ -351,8 +350,12 @@ def worker():
 
 
 def proxy():
+    kube_router_cni = "false"
+    if CNI == 'kuberoute':
+        kube_router_cni = "true"
     local('cp ' + WORK_DIR + '/yaml/kube-router ' + WORK_DIR + '/tmp/yaml/')
     local("sed -i 's#__KUBE_ROUTER_IMAGE__#" + KUBE_ROUTER_IMAGE + "#g' " + WORK_DIR + "/tmp/yaml/kube-router/kuberoute.yaml")
+    local("sed -i 's#__KUBE_ROUTER_CNI__#" + kube_router_cni + "#g' " + "/tmp/yaml/kube-router/kuberoute.yaml" )
 
     local('kubectl create configmap'
           ' -n kube-system kuberoute-kubeconfig'
@@ -369,7 +372,14 @@ def network():
 
 
 def core_dns():
-    local('cp ' + WORK_DIR + '/yaml/coredns ' + WORK_DIR + '/tmp/yaml/')
-    local('sed -i "s#__CLUSTER_DNS_IP__#' + CLUSTER_IP[2] + '#g" ' + WORK_DIR + '/tmp/yaml/coredns/coredns.yaml')
-    local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/coredns')
+    local('cp ' + WORK_DIR + '/yaml/core-dns ' + WORK_DIR + '/tmp/yaml/')
+    local('sed -i "s#__CLUSTER_DNS_IP__#' + CLUSTER_IP[2] + '#g" ' + WORK_DIR + '/tmp/yaml/core-dns/coredns.yaml')
+    local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/core-dns')
 
+
+def metrics():
+    local('kubectl apply -f ' + WORK_DIR + '/yaml/metrics-server')
+
+
+def ingress():
+    local('kubectl apply -f ' + WORK_DIR + '/yaml/ingress')
