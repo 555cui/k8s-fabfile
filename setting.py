@@ -6,11 +6,14 @@ PASSWORDS = {
         'port': 0,  # ssh port
         'password': 'ssh password'
     }
+    # ...
 }
 
 BASE_DIR = '/opt/kubernetes'
-
 WORK_DIR = '/root/kubernetes'
+
+# ssl
+SSL_EXPIRY = '87600h'
 
 # etcd
 ETCD_HOSTS = ['etcd hosts']
@@ -32,10 +35,13 @@ CNI = 'flannel'
 WORKER_HOSTS = [
     'worker hosts'
 ]
-PAUSE_IMAGE = 'library/pause-amd64:latest'
+
+PAUSE_IMAGE = 'registry.cn-hangzhou.aliyuncs.com/google-containers/pause-amd64:3.0'
 KUBE_ROUTER_IMAGE = 'library/kube-router:latest'
-FLANNEL_IMAGE = 'library/flannel-amd64:latest'
+FLANNEL_IMAGE = 'library/flannel:v0.10.0-amd64'
+METRICS_IMAGE = 'library/metrics:latest'
 TILLER_IMAGE = 'library/tiller:v2.14.3'
 
 # docker
-DOCKER_ONLINE = True
+DOCKER_ONLINE = False
+DOCKER_PACKAGE = 'docker-19.03.2.tgz'
