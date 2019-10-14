@@ -37,8 +37,9 @@ WORKER_HOSTS = [
 ]
 
 PAUSE_IMAGE = 'registry.cn-hangzhou.aliyuncs.com/google-containers/pause-amd64:3.0'
-KUBE_ROUTER_IMAGE = 'library/kube-router:latest'
+KUBE_ROUTER_IMAGE = 'cloudnativelabs/kube-router'
 FLANNEL_IMAGE = 'library/flannel:v0.10.0-amd64'
+CORE_DNS_IMAGE = 'coredns/coredns'
 METRICS_IMAGE = 'library/metrics:latest'
 TILLER_IMAGE = 'library/tiller:v2.14.3'
 

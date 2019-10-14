@@ -1,0 +1,33 @@
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+Requires=kube-apiserver.service
+
+[Service]
+EnvironmentFile=-__BASE_DIR__/master/conf/kube-controller-manager.cfg
+ExecStart=__BASE_DIR__/master/bin/kube-controller-manager \
+--master=${MASTER} \
+--leader-elect=${LEADER_ELECT} \
+--bind-address=${BIND_ADDRESS} \
+--service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE} \
+--allocate-node-cidrs=${ALLOCATE_NODE_CIDRS} \
+--cluster-cidr=${CLUSTER_CIDR} \
+--cluster-name=${CLUSTER_NAME} \
+--cluster-signing-cert-file=${CLUSTER_SIGNING_CERT_FILE} \
+--cluster-signing-key-file=${CLUSTER_SIGNING_KEY_FILE} \
+--root-ca-file=${ROOT_CA_FILE} \
+--service-account-private-key-file=${SERVICE_ACCOUNT_PRIVATE_KEY_FILE} \
+--experimental-cluster-signing-duration=${EXPERIMENTAL_CLUSTER_SIGNING_DURATION} \
+--feature-gates=RotateKubeletServerCertificate=true \
+--horizontal-pod-autoscaler-use-rest-clients=true \
+--logtostderr=false \
+--v=4
+
+Restart=on-failure
+RestartSec=5
+Type=simple
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,43 @@
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+
+[Service]
+EnvironmentFile=-__BASE_DIR__/master/conf/kube-apiserver.cfg
+ExecStart=__BASE_DIR__/master/bin/kube-apiserver \
+--bind-address=${BIND_ADDRESS} \
+--secure-port=${SECURE_PORT} \
+--client-ca-file=${CLIENT_CA_FILE} \
+--service-account-key-file=${SERVICE_ACCOUNT_KEY_FILE} \
+--tls-cert-file=${TLS_CERT_FILE} \
+--tls-private-key-file=${TLS_PRIVATE_KEY_FILE} \
+--logtostderr=${LOG_TO_STDERR} \
+--v=${LOG_LEVEL} \
+--log-dir=${LOG_DIR} \
+--allow-privileged=${ALLOW_PRIVILEGED} \
+--service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE} \
+--service-node-port-range=${SERVICE_NODE_PORT_RANGE} \
+--enable-admission-plugins=${ENABLE_ADMISSION_PLUGINS} \
+--authorization-mode=${AUTHORIZATION_MODE} \
+--enable-bootstrap-token-auth \
+--token-auth-file=${TOKEN_AUTH_FILE} \
+--etcd-servers=${ETCD_SERVERS} \
+--etcd-cafile=${ETCD_CAFILE} \
+--etcd-certfile=${ETCD_CERTFILE} \
+--etcd-keyfile=${ETCD_KEYFILE} \
+--requestheader-client-ca-file=${CLIENT_CA_FILE} \
+--proxy-client-cert-file=${PROXY_CLIENT_CERT_FILE} \
+--proxy-client-key-file=${PROXY_CLIENT_KEY_FILE} \
+--requestheader-allowed-names="aggregator" \
+--requestheader-extra-headers-prefix="X-Remote-Extra-" \
+--requestheader-group-headers="X-Remote-Group" \
+--requestheader-username-headers="X-Remote-User"
+#--runtime-config=api/all=true
+
+Restart=on-failure
+RestartSec=5
+Type=notify
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

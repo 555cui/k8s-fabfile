@@ -1,0 +1,28 @@
+[Unit]
+Description=Kubernetes Kubelet Server
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+After=docker.service
+Requires=docker.service
+
+[Service]
+EnvironmentFile=-__BASE_DIR__/worker/conf/kubelet.cfg
+ExecStart=__BASE_DIR__/worker/bin/kubelet \
+--logtostderr=false \
+--v=4 \
+--log-dir=${LOG_DIR} \
+--hostname-override=${HOSTNAME_OVERRIDE} \
+--kubeconfig=${KUBECONFIG} \
+--bootstrap-kubeconfig=${BOOTSTRAP_KUBECONFIG} \
+--cert-dir=${CERT_DIR} \
+--pod-infra-container-image=${POD_INFRA_CONTAINER_IMAGE} \
+--allow-privileged=true \
+--cluster-dns=${CLUSTER_DNS} \
+--cluster-domain=${CLUSTER_DOMAIN} \
+--network-plugin=cni \
+--feature-gates=RotateKubeletClientCertificate=true,RotateKubeletServerCertificate=true \
+
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

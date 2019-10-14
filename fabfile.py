@@ -353,7 +353,7 @@ def proxy():
     kube_router_cni = "false"
     if CNI == 'kuberoute':
         kube_router_cni = "true"
-    local('cp ' + WORK_DIR + '/yaml/kube-router ' + WORK_DIR + '/tmp/yaml/')
+    local('cp -r ' + WORK_DIR + '/yaml/kube-router ' + WORK_DIR + '/tmp/yaml/')
     local("sed -i 's#__KUBE_ROUTER_IMAGE__#" + KUBE_ROUTER_IMAGE + "#g' " + WORK_DIR + "/tmp/yaml/kube-router/kuberoute.yaml")
     local("sed -i 's#__KUBE_ROUTER_CNI__#" + kube_router_cni + "#g' " + "/tmp/yaml/kube-router/kuberoute.yaml" )
 
@@ -365,15 +365,16 @@ def proxy():
 
 def network():
     if CNI == 'flannel':
-        local('cp ' + WORK_DIR + '/yaml/flannel ' + WORK_DIR + '/tmp/yaml/')
+        local('cp -r ' + WORK_DIR + '/yaml/flannel ' + WORK_DIR + '/tmp/yaml/')
         local("sed -i 's#__POD_IP__#" + POD_IP + "#g' " + WORK_DIR + "/tmp/yaml/flannel/kube-flannel-legacy.yaml")
-        local("sed -i 's#__FLANNEL_IMAGE__#" + FLANNEL_IMAGE + "#g' " + WORK_DIR + "/tmp/yaml/flannel/kube-flannel-legacy.yaml")
+        local("sed -i 's#__FLANNEL_IMAGE__#" + FLANNEL_IMAGE + "#g' " + WORK_DIR + "/tmp/yaml/flannel/kube-flannel-legacy.yml")
         local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/flannel')
 
 
 def core_dns():
-    local('cp ' + WORK_DIR + '/yaml/core-dns ' + WORK_DIR + '/tmp/yaml/')
-    local('sed -i "s#__CLUSTER_DNS_IP__#' + CLUSTER_IP[2] + '#g" ' + WORK_DIR + '/tmp/yaml/core-dns/coredns.yaml')
+    local('cp -r ' + WORK_DIR + '/yaml/core-dns ' + WORK_DIR + '/tmp/yaml/')
+    local('sed -i "s#__CLUSTER_DNS_IP__#' + str(CLUSTER_IP[2]) + '#g" ' + WORK_DIR + '/tmp/yaml/core-dns/coredns.yaml')
+    local('sed -i "s#__CORE_DNS_IMAGE__#' + CORE_DNS_IMAGE + '#g" ' + WORK_DIR + '/tmp/yaml/core-dns/coredns.yaml')
     local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/core-dns')
 
 

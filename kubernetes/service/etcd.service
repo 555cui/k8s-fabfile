@@ -1,0 +1,29 @@
+[Unit]
+Description=Etcd Server
+After=network.target
+
+[Service]
+Type=notify
+EnvironmentFile=-__BASE_DIR__/etcd/conf/etcd.cfg
+ExecStart=__BASE_DIR__/etcd/bin/etcd \
+--name=${ETCD_NAME} \
+--data-dir=${ETCD_DATA_DIR} \
+--advertise-client-urls=${ETCD_ADVERTISE_CLIENT_URLS} \
+--initial-advertise-peer-urls=${ETCD_INITIAL_ADVERTISE_PEER_URLS} \
+--initial-cluster=${ETCD_INITIAL_CLUSTER} \
+--initial-cluster-state=${ETCD_INITIAL_CLUSTER_STATE} \
+--initial-cluster-token=${ETCD_INITIAL_CLUSTER_TOKEN} \
+--trusted-ca-file=${ETCD_CA_FILE} \
+--cert-file=${ETCD_CERT_FILE} \
+--key-file=${ETCD_KEY_FILE} \
+--peer-trusted-ca-file=${ETCD_PEER_CA_FILE} \
+--peer-cert-file=${ETCD_PEER_CERT_FILE} \
+--peer-key-file=${ETCD_PEER_KEY_FILE} \
+--listen-client-urls=${ETCD_LISTEN_CLIENT_URLS} \
+--listen-peer-urls=${ETCD_LISTEN_PEER_URLS}
+
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

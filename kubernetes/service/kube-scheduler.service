@@ -1,0 +1,21 @@
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+Requires=kube-apiserver.service
+
+[Service]
+EnvironmentFile=-__BASE_DIR__/master/conf/kube-scheduler.cfg
+ExecStart=__BASE_DIR__/master/bin/kube-scheduler \
+--master=${MASTER} \
+--leader-elect=${LEADER_ELECT} \
+--logtostderr=false \
+--v=4
+
+Restart=on-failure
+RestartSec=5
+Type=simple
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
