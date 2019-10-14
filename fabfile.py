@@ -357,7 +357,7 @@ def proxy():
     local('kubectl create configmap'
           ' -n kube-system kuberoute-kubeconfig'
           ' --from-file=' + WORK_DIR + '/tmp/kubeconfig/kuberoute.kubeconfig')
-    local('kubectl apply -f ' + WORK_DIR + '/yaml/kube-router')
+    local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/kube-router')
 
 
 def network():
@@ -373,3 +373,10 @@ def core_dns():
     local('sed -i "s#__CLUSTER_DNS_IP__#' + CLUSTER_IP[2] + '#g" ' + WORK_DIR + '/tmp/yaml/coredns/coredns.yaml')
     local('kubectl apply -f ' + WORK_DIR + '/tmp/yaml/coredns')
 
+
+def metrics():
+    local('kubectl apply -f ' + WORK_DIR + '/yaml/metrics-server')
+
+
+def ingress():
+    local('kubectl apply -f ' + WORK_DIR + '/yaml/ingress-nginx')
